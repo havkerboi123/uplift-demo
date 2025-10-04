@@ -7,13 +7,13 @@ from livekit.plugins import (
     openai,
     noise_cancellation,
     upliftai,
-    silero,
-    groq
+    silero
 )
+
 from flask import Flask, send_from_directory
 import os
 import threading
-from livekit.plugins import groq 
+
 
 flask_app = Flask(__name__)
 
@@ -32,6 +32,7 @@ from livekit.plugins.turn_detector.multilingual import MultilingualModel
 @flask_app.route('/')
 def index():
     return send_from_directory('.', 'client.html')
+
 p="""
 # Pakistan History Voice Assistant
 
@@ -59,14 +60,6 @@ async def lookup_weather(
 
     return {"weather": "sunny", "temperature": 80}
 
-@function_tool
-async def lookup_weather(
-    context: RunContext,
-    location: str,
-):
-    """Used to look up weather information."""
-
-    return {"weather": "sunny", "temperature": 80}
 
 
 async def entrypoint(ctx: agents.JobContext):
