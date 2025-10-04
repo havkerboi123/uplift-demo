@@ -10,6 +10,12 @@ from livekit.plugins import (
     silero,
     groq  # Add this import
 )
+from flask import Flask, send_from_directory
+import os
+import threading
+
+flask_app = Flask(__name__)
+
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -21,6 +27,10 @@ from livekit.agents import (
 )
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
+
+@flask_app.route('/')
+def index():
+    return send_from_directory('.', 'client.html')
 p="""
 # Pakistan History Voice Assistant
 
@@ -88,7 +98,15 @@ async def entrypoint(ctx: agents.JobContext):
     )
 
 if __name__ == "__main__":
-    import os
+    # Start Flask in background thread
+    port = int(os.environ.get('PORT', 8080))
+    flask_thread = threading.Thread(
+        target=lambda: flask_app.run(host='0.0.0.0', port=port),
+        daemon=True
+    )
+    flask_thread.start()
+    
+    # Run LiveKit agent
     agents.cli.run_app(agents.WorkerOptions(
         entrypoint_fnc=entrypoint,
         initialize_process_timeout=60,

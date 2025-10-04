@@ -3,6 +3,7 @@ livekit-agents==1.2.8
 livekit==1.0.12
 livekit-api==1.0.5
 livekit-protocol==1.0.5
+flask
 
 # LiveKit plugins
 livekit-plugins-openai==1.2.8
