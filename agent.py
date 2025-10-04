@@ -8,11 +8,12 @@ from livekit.plugins import (
     noise_cancellation,
     upliftai,
     silero,
-    groq  # Add this import
+    groq
 )
 from flask import Flask, send_from_directory
 import os
 import threading
+from livekit.plugins import groq 
 
 flask_app = Flask(__name__)
 
@@ -75,7 +76,7 @@ async def entrypoint(ctx: agents.JobContext):
     )
     
     session = AgentSession(
-        stt=groq.STT(model="whisper-large-v3", language="ur"),
+        stt=openai.STT.with_groq(model="whisper-large-v3"),
         llm=openai.LLM(model="gpt-4o-mini"),
         tts=tts,
         vad=silero.VAD.load(),
