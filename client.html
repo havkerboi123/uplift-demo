@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Medical Record AI — Voice Assistant</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/livekit-client/2.5.8/livekit-client.umd.min.js"></script>
+  <style>
+    :root{
+      /* Theme: 1 primary + 3 neutrals + 1 accent neutral */
+      --color-primary: #0d9488;  /* teal-600 */
+      --color-text: #0f172a;     /* slate-900 */
+      --color-muted: #475569;    /* slate-600 */
+      --color-surface: #e2e8f0;  /* slate-200 */
+      --radius: 14px;
+      --shadow-elev: 0 20px 40px rgba(2, 6, 23, 0.12);
+      --shadow-focus: 0 0 0 4px rgba(13, 148, 136, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+      color: var(--color-text);
+      background: #fff; /* Clean minimal background */
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    /* Layout */
+    header{
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--color-surface);
+    }
+    .brand{
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-mark{
+      inline-size: 36px;
+      block-size: 36px;
+      border-radius: 9px;
+      background: var(--color-primary);
+    }
+    .brand-name{
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    main{
+      display: grid;
+      place-items: center;
+      padding: 40px 20px 64px;
+    }
+    .shell{
+      width: 100%;
+      max-width: 1100px;
+      display: grid;
+      gap: 28px;
+    }
+
+    /* Hero */
+    .hero{
+      display: grid;
+      gap: 14px;
+      text-align: center;
+      padding: 10px 0 6px;
+    }
+    .hero h1{
+      margin: 0;
+      font-size: clamp(28px, 4.6vw, 46px);
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+    }
+    .hero p{
+      margin: 0;
+      color: var(--color-muted);
+      font-size: clamp(15px, 2.5vw, 18px);
+      line-height: 1.6;
+      max-width: 60ch;
+      justify-self: center;
+      text-wrap: pretty;
+    }
+
+    /* Card */
+    .card{
+      margin: 6px auto 0;
+      width: min(680px, 100%);
+      background: #fff;
+      border: 1px solid var(--color-surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-elev);
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+    }
+
+    /* CTA Row */
+    .cta-row{
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 520px){
+      .cta-row{
+        grid-template-columns: 1fr auto;
+        align-items: center;
+      }
+    }
+
+    /* Buttons */
+    .btn{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-weight: 600;
+      font-size: 16px;
+      transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+    }
+    .btn:focus-visible{
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+    .btn:disabled{
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .btn-primary{
+      background: var(--color-primary);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled){ transform: translateY(-1px); }
+    .btn-outline{
+      background: transparent;
+      color: var(--color-text);
+      border-color: var(--color-surface);
+    }
+    .btn-outline:hover{ border-color: var(--color-primary); color: var(--color-primary); }
+
+    /* Status */
+    .status{
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      border: 1px solid var(--color-surface);
+    }
+    .status.connected{
+      background: rgba(13, 148, 136, 0.08);
+      color: var(--color-primary);
+      border-color: rgba(13, 148, 136, 0.22);
+    }
+    .status.connecting{
+      background: rgba(13, 148, 136, 0.06);
+      color: #0f172a;
+      border-color: rgba(13, 148, 136, 0.16);
+    }
+    .status.error{
+      background: rgba(15, 23, 42, 0.04);
+      color: #0f172a;
+      border-color: rgba(15, 23, 42, 0.18);
+    }
+
+    /* Audio Controls */
+    .audio{
+      display: none;
+      border-radius: 12px;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid var(--color-surface);
+    }
+    .audio.active{ display: grid; gap: 10px; }
+    .audio-label{
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--color-muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .dot{
+      inline-size: 10px;
+      block-size: 10px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      animation: blink 1.8s ease-in-out infinite;
+    }
+    @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.5} }
+
+    .bar{
+      height: 10px;
+      background: var(--color-surface);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .level{
+      height: 100%;
+      width: 0%;
+      background: var(--color-primary);
+      transition: width 100ms linear;
+    }
+
+    /* Debug */
+    .debug{
+      display: grid;
+      gap: 10px;
+    }
+    .debug-title{
+      color: var(--color-muted);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    .log{
+      background: #0f172a;
+      color: #a7f3d0; /* mint-ish text within our palette vibe */
+      border-radius: 10px;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      max-height: 220px;
+      overflow: auto;
+      border: 1px solid #0b1220;
+    }
+
+    footer{
+      padding: 18px 24px 28px;
+      border-top: 1px solid var(--color-surface);
+      color: var(--color-muted);
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header aria-label="Brand header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div class="brand-name">Medical Record AI</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="shell">
+      <section class="hero" aria-labelledby="hero-title">
+        <h1 id="hero-title">Understand your medical records in plain language</h1>
+        <p>Speak naturally and get clear explanations of diagnoses, medications, and lab results. Your private voice assistant for healthcare clarity.</p>
+      </section>
+
+      <section class="card" aria-label="Voice assistant controls">
+        <div class="cta-row">
+          <button class="btn btn-primary" id="connectBtn" onclick="connect()">
+            Talk to AI
+          </button>
+
+          <button class="btn btn-outline" id="disconnectBtn" onclick="disconnect()" style="display: none;">
+            End session
+          </button>
+        </div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+
+        <div class="audio" id="audioControls" aria-hidden="true">
+          <div class="audio-label">
+            <span class="dot" aria-hidden="true"></span>
+            Microphone active
+          </div>
+          <div class="bar" aria-label="Input level">
+            <div class="level" id="volumeLevel"></div>
+          </div>
+        </div>
+
+        <div class="debug" aria-live="off">
+          <div class="debug-title">Debug log</div>
+          <div class="log" id="debugLog" role="log" aria-label="Event log"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    Built for clarity and comfort. Your health, your understanding.
+  </footer>
+
+  <script>
+    // LiveKit configuration (unchanged functionality)
+    const LIVEKIT_URL = 'wss://uplift-sas8blrv.livekit.cloud';
+    const API_KEY = 'APIhKeyoY9BaY8m';
+    const API_SECRET = 'qn71ZmVkf0j31N0VOwKtfp3Fn8kAUFj3MftuXOo19dBA';
+
+    let room = null;
+    let audioTrack = null;
+
+    function log(message) {
+      const logDiv = document.getElementById('debugLog');
+      const time = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `<div>[${time}] ${message}</div>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(message);
+    }
+
+    function updateStatus(message, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = message;
+      statusDiv.className = 'status ' + (type || '');
+      log(message);
+    }
+
+    async function generateToken() {
+      const identity = 'user-' + Math.random().toString(36).substr(2, 9);
+
+      const payload = {
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iss: API_KEY,
+        nbf: Math.floor(Date.now() / 1000),
+        sub: identity,
+        name: 'User',
+        video: {
+          roomJoin: true,
+          room: 'agent-room',
+          canPublish: true,
+          canSubscribe: true
+        }
+      };
+
+      const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+      const body = btoa(JSON.stringify(payload));
+      const unsigned = header + '.' + body;
+
+      const encoder = new TextEncoder();
+      const keyData = encoder.encode(API_SECRET);
+      const key = await crypto.subtle.importKey(
+        'raw',
+        keyData,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+
+      const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(unsigned));
+      const signatureArray = Array.from(new Uint8Array(signature));
+      const signatureBase64 = btoa(String.fromCharCode(...signatureArray))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+
+      return unsigned + '.' + signatureBase64;
+    }
+
+    async function connect() {
+      try {
+        document.getElementById('connectBtn').disabled = true;
+        updateStatus('Connecting to assistant…', 'connecting');
+
+        const token = await generateToken();
+
+        room = new LivekitClient.Room({
+          audioCaptureDefaults: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+          audioOutput: { deviceId: 'default' }
+        });
+
+        // Subscribe to remote tracks (critical for audio)
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          log(`Track subscribed: ${track.kind} from ${participant.identity}`);
+
+          if (track.kind === LivekitClient.Track.Kind.Audio) {
+            log('Attaching assistant audio…');
+            const audioElement = track.attach();
+            audioElement.autoplay = true;
+            audioElement.volume = 1.0;
+            document.body.appendChild(audioElement);
+
+            audioElement.play().then(() => {
+              log('Assistant audio is playing');
+            }).catch(err => {
+              log('Audio play error: ' + err.message);
+            });
+          }
+        });
+
+        room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+          log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
+        });
+
+        room.on(LivekitClient.RoomEvent.Disconnected, (reason) => {
+          log('Disconnected: ' + reason);
+          updateStatus('Disconnected', 'error');
+          document.getElementById('connectBtn').style.display = 'inline-flex';
+          document.getElementById('connectBtn').disabled = false;
+          document.getElementById('disconnectBtn').style.display = 'none';
+          const audioControls = document.getElementById('audioControls');
+          audioControls.classList.remove('active');
+          audioControls.setAttribute('aria-hidden', 'true');
+        });
+
+        room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+          log('Participant joined: ' + participant.identity);
+        });
+
+        room.on(LivekitClient.RoomEvent.TrackPublished, (publication, participant) => {
+          log(`Track published by ${participant.identity}: ${publication.kind}`);
+        });
+
+        room.on(LivekitClient.RoomEvent.Connected, () => {
+          log('Room connected successfully');
+        });
+
+        await room.connect(LIVEKIT_URL, token);
+        log('Connected to room');
+
+        // Create and publish microphone track
+        const localAudioTrack = await LivekitClient.createLocalAudioTrack({
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        });
+
+        await room.localParticipant.publishTrack(localAudioTrack, {
+          source: LivekitClient.Track.Source.Microphone,
+          name: 'microphone',
+        });
+        log('Microphone published');
+
+        window.audioTrack = localAudioTrack;
+
+        updateStatus('Connected. Start speaking to the assistant…', 'connected');
+        document.getElementById('connectBtn').style.display = 'none';
+        document.getElementById('disconnectBtn').style.display = 'inline-flex';
+        const audioControls = document.getElementById('audioControls');
+        audioControls.classList.add('active');
+        audioControls.setAttribute('aria-hidden', 'false');
+
+        monitorAudioLevel();
+      } catch (error) {
+        console.error('Connection error:', error);
+        log('Error: ' + error.message);
+        updateStatus('Connection failed: ' + error.message, 'error');
+        document.getElementById('connectBtn').disabled = false;
+      }
+    }
+
+    async function disconnect() {
+      if (room) {
+        log('Disconnecting…');
+        await room.disconnect();
+        room = null;
+        audioTrack = null;
+      }
+    }
+
+    function monitorAudioLevel() {
+      const track = window.audioTrack;
+      if (!track) return;
+
+      const interval = setInterval(() => {
+        if (!room || !window.audioTrack) {
+          clearInterval(interval);
+          return;
+        }
+
+        // Simulated level for UI feedback
+        const level = Math.random() * 80 + 20;
+        document.getElementById('volumeLevel').style.width = level + '%';
+      }, 100);
+    }
+  </script>
+</body>
+</html>
